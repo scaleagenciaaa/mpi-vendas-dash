@@ -397,3 +397,11 @@ a.v2crumb:hover{color:var(--ink2);text-decoration:underline}
 .foot{color:var(--muted2);font-size:11.5px;text-align:center;margin-top:22px;padding-top:16px;border-top:1px solid var(--line)}
 .foot b{color:var(--muted)}
 .empty{color:var(--muted2);font-size:12.5px;padding:14px 2px;text-align:center}
+
+/* ---------- aba criativos (hook rate) ---------- */
+#tab-criativos .micro-tile .mtl-t{font-size:12px;line-height:1.4;overflow-wrap:anywhere}
+#tab-criativos .v2filters{margin-bottom:12px}
+#tab-criativos .cri-note{font-size:11.5px;color:var(--muted2);margin-bottom:8px}
+#tab-criativos .cri-hook .heatcell{min-width:54px;text-align:center}
+#tab-criativos .cri-hook tfoot .heatcell{background:transparent}
+#tab-criativos .v2name{max-width:none;display:inline-block;vertical-align:bottom}

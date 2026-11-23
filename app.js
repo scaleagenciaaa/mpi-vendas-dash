@@ -4,7 +4,7 @@
 /* ---- registro de funis (MPI + MPD) · seletor no topo ---- */
 var FUNNELS={ mpi:(window.MPI||{}), mpd:(window.MPD||{}) };
 var FUNNEL_LABELS={ mpi:'MPI', mpd:'MPD' };
-var FUNNEL_TABS={ mpi:['geral','consolidado','meta','google','v2','micro','ciclo','historico'], mpd:['geral','v2'] };
+var FUNNEL_TABS={ mpi:['geral','consolidado','meta','google','v2','criativos','micro','ciclo','historico'], mpd:['geral','v2'] };
 var curFunnel='mpi';
 var D = FUNNELS.mpi || {};
 var arr = function(x){ return Array.isArray(x) ? x : (x ? [x] : []); };
@@ -1175,7 +1175,7 @@ function initPeriods(){ el('periods').innerHTML=periodsHTML();
   function onDate(){ var s=de.value,e=at.value; if(!s||!e)return; if(s>e){var t=s;s=e;e=t;} if(s<minDate)s=minDate; if(e>maxDate)e=maxDate; customRange=[s,e]; period='custom'; syncPeriodUI(); renderAll(); }
   de.addEventListener('change',onDate); at.addEventListener('change',onDate); syncPeriodUI(); }
 
-var TABS=['geral','consolidado','meta','google','v2','micro','ciclo','historico'];
+var TABS=['geral','consolidado','meta','google','v2','criativos','micro','ciclo','historico'];
 function activateTab(id){
   var allowed=FUNNEL_TABS[curFunnel]||FUNNEL_TABS.mpi;
   if(allowed.indexOf(id)<0) id=allowed[0];

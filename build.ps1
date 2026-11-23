@@ -162,6 +162,7 @@ function Build-Source($qRows,$qh,$sales,$cfg){
   $Q_DAY = HdrLike $qh 'date'; if($Q_DAY -lt 0){ $Q_DAY=HdrLike $qh 'day' }
   $Q_LPV = if($cfg.hasLpv){ HdrLike $qh '*landing page view*' } else { -1 }
   $Q_CHK = if($cfg.hasCheckout){ HdrLike $qh '*checkout*' } else { -1 }
+  $Q_VV  = if($cfg.hasVideo){ HdrLike $qh 'action video view (3s)' } else { -1 }   # col K da aba 'MPI | META': reproducoes de video de 3s (hook rate)
   foreach($pair in @(@('Campaign',$Q_CAMP),@('Conjunto',$Q_SET),@('Ad',$Q_AD),@('Spend',$Q_SPEND),@('Impr',$Q_IMP),@('Clicks',$Q_CLK),@('Day',$Q_DAY))){ if($pair[1] -lt 0){ throw ("Query: coluna nao encontrada: "+$pair[0]) } }
 
   # ---- mapas de nome p/ atribuicao (deaccent -> nome real) + pares/triplas validas ----
@@ -220,7 +221,7 @@ function Build-Source($qRows,$qh,$sales,$cfg){
   # ---- daily + grain a partir das queries (gasto/impr/cliques/lpv/checkout) ----
   $daily=@{}; $grain=@{}
   function _gd($h,$d){ if(-not $h.ContainsKey($d)){ $h[$d]=[pscustomobject]@{date=$d;spendRaw=0.0;spend=0.0;impr=0;clicks=0;lpv=0;checkout=0;sales=0;rev=0.0;gross=0.0} }; return $h[$d] }
-  function _gg($h,$k,$d,$c,$s,$a){ if(-not $h.ContainsKey($k)){ $h[$k]=[pscustomobject]@{date=$d;campaign=$c;adset=$s;ad=$a;spendRaw=0.0;spend=0.0;impr=0;clicks=0;lpv=0;checkout=0;sales=0;rev=0.0;gross=0.0} }; return $h[$k] }
+  function _gg($h,$k,$d,$c,$s,$a){ if(-not $h.ContainsKey($k)){ $h[$k]=[pscustomobject]@{date=$d;campaign=$c;adset=$s;ad=$a;spendRaw=0.0;spend=0.0;impr=0;clicks=0;lpv=0;checkout=0;sales=0;rev=0.0;gross=0.0;vv=0;imv=0} }; return $h[$k] }
   $mult = if($cfg.tax){ $TAX } else { 1.0 }
   foreach($r in $qRows){ if($r.Count -le $Q_AD){continue}
     $d=GDay $r[$Q_DAY]; if($d -notmatch '^\d{4}-\d{2}-\d{2}$'){continue}
@@ -231,6 +232,8 @@ function Build-Source($qRows,$qh,$sales,$cfg){
     $o=_gd $daily $d; $o.spendRaw+=$spRaw;$o.spend+=$sp;$o.impr+=$im;$o.clicks+=$ck;$o.lpv+=$lp;$o.checkout+=$chk
     $key="$d`u$cn`u$sn`u$an"
     $g=_gg $grain $key $d $cn $sn $an; $g.spendRaw+=$spRaw;$g.spend+=$sp;$g.impr+=$im;$g.clicks+=$ck;$g.lpv+=$lp;$g.checkout+=$chk
+    # hook rate: K so conta quando preenchida (vazia = linha de antes de 17/11/2026, sem o dado; diferente de 0)
+    if($Q_VV -ge 0 -and $r.Count -gt $Q_VV){ $vvTxt=Norm $r[$Q_VV]; if($vvTxt -ne ''){ $g.vv+=(ToInt $vvTxt); $g.imv+=$im } }
   }
 
   # ---- vendas: soma no daily e atribui no grain (campanha/conjunto/anuncio) ----
@@ -274,8 +277,11 @@ function Build-Source($qRows,$qh,$sales,$cfg){
   function _ni($nm){ if(-not $nameIdx.ContainsKey($nm)){ $nameIdx[$nm]=$names.Count; $names.Add($nm) }; return $nameIdx[$nm] }
   $gOut=@()
   foreach($g in $grainArr){
-    $gOut += [pscustomobject]@{ d=$g.date; c=(_ni $g.campaign); s=(_ni $g.adset); a=(_ni $g.ad)
+    $go = [pscustomobject]@{ d=$g.date; c=(_ni $g.campaign); s=(_ni $g.adset); a=(_ni $g.ad)
       sp=[math]::Round($g.spend,2); spr=[math]::Round($g.spendRaw,2); im=[int]$g.impr; ck=[int]$g.clicks; lp=[int]$g.lpv; chk=[int]$g.checkout; vn=[int]$g.sales; rv=[math]::Round($g.rev,2); gr=[math]::Round($g.gross,2) }
+    # hook rate: vv/imv so nos itens com dado de video (o front trata ausencia como 0)
+    if($g.imv -gt 0){ $go | Add-Member -NotePropertyName vv -NotePropertyValue ([int]$g.vv); $go | Add-Member -NotePropertyName imv -NotePropertyValue ([int]$g.imv) }
+    $gOut += $go
   }
   $dOut=@()
   foreach($o in $dailyArr){
@@ -290,7 +296,7 @@ function Build-Source($qRows,$qh,$sales,$cfg){
 }
 
 # ---- roda as duas origens (MPI) ------------------------------------
-$mAll = Read-Csv $mCsv; $mBuilt = Build-Source $mAll[1..($mAll.Count-1)] $mAll[0] $metaSales @{ hasLpv=$true; hasCheckout=$true; tax=$true }
+$mAll = Read-Csv $mCsv; $mBuilt = Build-Source $mAll[1..($mAll.Count-1)] $mAll[0] $metaSales @{ hasLpv=$true; hasCheckout=$true; tax=$true; hasVideo=$true }
 $gAll = Read-Csv $gCsv; $gBuilt = Build-Source $gAll[1..($gAll.Count-1)] $gAll[0] $googleSales @{ hasLpv=$false; hasCheckout=$false; tax=$false }
 # ---- MDP: so Meta por enquanto; Google = fonte vazia ate subirem ----
 $mdpAll = Read-Csv $mdpCsv

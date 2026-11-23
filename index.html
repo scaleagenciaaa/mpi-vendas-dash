@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@1,500;1,600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?t=20261110v18">
+<link rel="stylesheet" href="styles.css?t=20261123v19">
 </head>
 <body>
 <div class="wrap">
@@ -46,6 +46,7 @@
     <button class="tab" data-tab="meta"><span class="tdot" style="background:#5b9dff"></span>Meta Ads</button>
     <button class="tab" data-tab="google"><span class="tdot" style="background:#f4a93b"></span>Google / YouTube</button>
     <button class="tab" data-tab="v2">⚡ Otimização V2</button>
+    <button class="tab" data-tab="criativos">🎬 Criativos</button>
     <button class="tab" data-tab="micro">🔬 Otimização Micro</button>
     <button class="tab" data-tab="ciclo">📉 Ciclo do Mês</button>
     <button class="tab" data-tab="historico">📅 Histórico</button>
@@ -198,6 +199,24 @@
     </div>
   </section>
 
+  <!-- ============ CRIATIVOS (hook rate) ============ -->
+  <section class="panel-tab hidden" id="tab-criativos">
+    <div class="hist-head">
+      <div class="hist-title">🎬 Performance de criativos <span class="hint" style="font-weight:500;text-transform:none;letter-spacing:0">hook rate = reproduções de vídeo de 3 s ÷ impressões × 100 · só Meta (anúncios com vídeo) · média ponderada pelas impressões</span></div>
+    </div>
+    <div class="micro-trend" id="criTiles"></div>
+    <div class="card">
+      <div class="card-h">Hook rate por criativo — últimos 7 dias <span class="hint">inclui hoje · não depende do período do topo · criativo = anúncio com o mesmo nome em todas as campanhas e conjuntos · cor de cada dia: verde acima e vermelho abaixo do hook da conta naquele dia · tendência = últimos 3 dias vs. 4 anteriores, em pontos percentuais</span></div>
+      <div class="v2filters" id="criVol"></div>
+      <div id="criHook"></div>
+    </div>
+    <div class="card">
+      <div class="card-h">Anúncios <span class="hint">métricas do funil por criativo, como na Otimização V2, com o hook rate entre o CTR e o Connect · reage ao período do topo · hook colorido vs. a média do período · clique num cabeçalho p/ ordenar (melhor→pior) · de novo p/ inverter</span> <span class="hint" id="criAdsMore"></span></div>
+      <div class="v2filters" id="criCh"></div>
+      <div id="criAds"></div>
+    </div>
+  </section>
+
   <!-- ============ OTIMIZAÇÃO MICRO ============ -->
   <section class="panel-tab hidden" id="tab-micro">
     <div class="card micro-detail">
@@ -243,7 +262,8 @@
   </footer>
 </div>
 
-<script src="data.js?t=20261110v18"></script>
-<script src="app.js?t=20261110v18"></script>
+<script src="data.js?t=20261123v19"></script>
+<script src="app.js?t=20261123v19"></script>
+<script src="criativos.js?t=20261123v19"></script>
 </body>
 </html>

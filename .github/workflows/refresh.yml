@@ -31,7 +31,7 @@ jobs:
           $ok = $false
           for ($i=0; $i -lt 5; $i++) {
             git fetch origin main
-            git reset --soft origin/main
+            git reset --mixed origin/main
             git add data.js
             if (-not (git status --porcelain data.js)) { Write-Host "data.js igual ao origin, nada a publicar"; $ok=$true; break }
             git commit -m ("auto: cloud " + (Get-Date -Format 'yyyy-MM-dd HH:mm'))
@@ -55,7 +55,7 @@ jobs:
       - name: Monta _site (so arquivos publicos - sem CSV/PII)
         run: |
           mkdir -p _site
-          cp index.html app.js styles.css data.js .nojekyll _site/
+          cp index.html app.js styles.css data.js criativos.js .nojekyll _site/
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
