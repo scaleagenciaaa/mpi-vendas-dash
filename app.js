@@ -1,10 +1,12 @@
-/* MPI — dashboard de vendas · render puro (sem libs, SVG na mão) sobre window.MPI / window.MPD */
+/* MPI — dashboard de vendas · render puro (sem libs, SVG na mão) sobre window.MPI / window.MPD / window.MPT */
 (function(){
 'use strict';
-/* ---- registro de funis (MPI + MPD) · seletor no topo ---- */
-var FUNNELS={ mpi:(window.MPI||{}), mpd:(window.MPD||{}) };
-var FUNNEL_LABELS={ mpi:'MPI', mpd:'MPD' };
-var FUNNEL_TABS={ mpi:['geral','consolidado','meta','google','v2','criativos','micro','ciclo','historico'], mpd:['geral','v2'] };
+/* ---- registro de funis (MPI + MPD + Teste de Tickets) · seletor no topo ----
+   tkt = conta CA07 (teste de ticket do MPI): os números dela também estão dentro do MPI; aqui ficam isolados p/ estudo */
+var FUNNELS={ mpi:(window.MPI||{}), mpd:(window.MPD||{}), tkt:(window.MPT||{}) };
+var FUNNEL_LABELS={ mpi:'MPI', mpd:'MPD', tkt:'Teste de Tickets' };
+var FUNNEL_TABS={ mpi:['geral','consolidado','meta','google','v2','criativos','micro','ciclo','historico'], mpd:['geral','v2'], tkt:['geral','v2'] };
+var FUNNEL_BANDS={ mpi:'Funil de Venda Direta · Produto MPI · Meta & Google Ads', mpd:'Funil de Venda Direta · Funil MPD · Meta Ads (Google em breve)', tkt:'Funil de Venda Direta · MPI · Teste de Tickets (conta CA07) · Meta Ads' };
 var curFunnel='mpi';
 var D = FUNNELS.mpi || {};
 var arr = function(x){ return Array.isArray(x) ? x : (x ? [x] : []); };
@@ -1187,7 +1189,7 @@ function applyFunnelTabs(){
   var allowed=FUNNEL_TABS[curFunnel]||FUNNEL_TABS.mpi;
   Array.prototype.forEach.call(document.querySelectorAll('.tab'),function(t){ t.style.display=(allowed.indexOf(t.getAttribute('data-tab'))>=0)?'':'none'; });
   var gc=el('goalCard'); if(gc) gc.style.display=(curFunnel==='mpi')?'':'none';
-  var eb=el('editband'); if(eb) eb.textContent=(curFunnel==='mpi')?'Funil de Venda Direta · Produto MPI · Meta & Google Ads':'Funil de Venda Direta · Funil MPD · Meta Ads (Google em breve)';
+  var eb=el('editband'); if(eb) eb.textContent=FUNNEL_BANDS[curFunnel]||FUNNEL_BANDS.mpi;
 }
 function initTabs(){ Array.prototype.forEach.call(document.querySelectorAll('.tab'),function(t){ t.addEventListener('click',function(){ var id=t.getAttribute('data-tab'); activateTab(id); if(history.replaceState)history.replaceState(null,'','#'+id); }); });
   var h=(location.hash||'').replace('#',''); activateTab(((FUNNEL_TABS[curFunnel]||[]).indexOf(h)>=0)?h:FUNNEL_TABS[curFunnel][0]);

@@ -23,6 +23,9 @@ $GOOGLE_ID  = '1uXhxl7xafcdE8jLbA611a_KNYzEjipTEtpiP0HePD58'; $GOOGLE_GID = '0' 
 # ---- FUNIL MDP (novo, 01/10/2026) - Meta only por enquanto (Google sobe depois) ----
 $MDP_META_ID='1oCthdDA8PHu3NQiFyI6ReXRN9ERAnsnruX6XiWuqz10'; $MDP_META_GID='0'   # MDP queries Meta (planilha nova desde 21/10/2026; a antiga 1o5sx99M parou de puxar gasto/impressoes em 12/10)
 $MDP_META_GID2='814640205'   # aba "Pagina2" da mesma planilha (29/10/2026): campanhas "MPD | E4-VEN ..." que nao vem na Pagina1 -> somadas a query do MDP
+# ---- CONTA CA07 (24/11/2026): campanhas MPI de teste de ticket. Aba 'MPI | META | CA07' da mesma planilha de queries do MPI.
+#      As linhas entram no MPI (todas as abas) E viram o funil separado "Teste de Tickets" (window.MPT).
+$CA07_GID='205'
 $TAX = 1.1385      # imposto Meta (+13,85%) aplicado em TODO gasto de Meta
 # produto MPI = venda direta principal (rotulo mudou ao longo do tempo)
 $MPI_PRODUCTS = @('MAPA DO PRIMEIRO INVESTIMENTO (MPI)','MPI')
@@ -74,6 +77,8 @@ Get-Sheet $GOOGLE_ID $GOOGLE_GID $gCsv
 Get-Sheet $MDP_META_ID $MDP_META_GID $mdpCsv
 $mdpCsv2=Join-Path $dataDir 'mdp-meta-2.csv'
 try { Get-Sheet $MDP_META_ID $MDP_META_GID2 $mdpCsv2 } catch { Write-Host ("  aviso: Pagina2 do MDP nao baixou ({0}) - segue so com a Pagina1" -f $_.Exception.Message); if(Test-Path $mdpCsv2){ Remove-Item $mdpCsv2 -Force } }
+$ca07Csv=Join-Path $dataDir 'meta-ca07.csv'
+try { Get-Sheet $META_ID $CA07_GID $ca07Csv } catch { Write-Host ("  aviso: aba CA07 nao baixou ({0}) - MPI segue sem a CA07" -f $_.Exception.Message); if(Test-Path $ca07Csv){ Remove-Item $ca07Csv -Force } }
 
 $v = Read-Csv $vCsv; $vh=$v[0]; $vd=$v[1..($v.Count-1)]
 $V_PROD=HdrLike $vh 'produto'; $V_DATE=HdrLike $vh 'data'; $V_VAL=HdrLike $vh 'valor'; $V_FAT=HdrLike $vh 'faturamento'
@@ -114,17 +119,17 @@ foreach($r in $vd){
   if($ok -eq 'lastro' -and $gross -ge 60 -and $gross -lt 150){ $ok='lastro_ds' }
   if($ok -ne ''){
     # order bump: separa por funil (campanha MDP -> OB do MDP; senao OB do MPI, comportamento original)
-    if($isMdp){ $mdpObSales.Add([pscustomobject]@{ date=$d; k=$ok; src=$stag; rev=$rev; gross=$gross }) }
-    else { $obSales.Add([pscustomobject]@{ date=$d; k=$ok; src=$stag; rev=$rev; gross=$gross }) }
+    if($isMdp){ $mdpObSales.Add([pscustomobject]@{ date=$d; k=$ok; src=$stag; rev=$rev; gross=$gross; camp=$camp }) }
+    else { $obSales.Add([pscustomobject]@{ date=$d; k=$ok; src=$stag; rev=$rev; gross=$gross; camp=$camp }) }
   }
   elseif($MPI_PRODUCTS -contains $prod){
     if($src -eq 'facebook-ads'){ $dst=$metaSales } else { $dst=$googleSales }
-    $dst.Add([pscustomobject]@{ date=$d; rev=$rev; gross=$gross; camp=$camp; term=(Norm $r[$V_TERM]); cont=(Norm $r[$V_CONT]); med=(Norm $r[$V_MED]) })
+    $dst.Add([pscustomobject]@{ date=$d; rev=$rev; gross=$gross; camp=$camp; term=(Norm $r[$V_TERM]); cont=(Norm $r[$V_CONT]); med=(Norm $r[$V_MED]); ac='' })
   }
   elseif($isMdp){
     # venda principal do funil MDP (produto proprio, atribuida por utm_campaign)
     if($src -eq 'facebook-ads'){ $dst=$mdpMetaSales } else { $dst=$mdpGoogleSales }
-    $dst.Add([pscustomobject]@{ date=$d; rev=$rev; gross=$gross; camp=$camp; term=(Norm $r[$V_TERM]); cont=(Norm $r[$V_CONT]); med=(Norm $r[$V_MED]) })
+    $dst.Add([pscustomobject]@{ date=$d; rev=$rev; gross=$gross; camp=$camp; term=(Norm $r[$V_TERM]); cont=(Norm $r[$V_CONT]); med=(Norm $r[$V_MED]); ac='' })
   }
   else { $nSkip++ }
 }
@@ -255,6 +260,7 @@ function Build-Source($qRows,$qh,$sales,$cfg){
       elseif($aName -eq '' -or -not $qTriple.ContainsKey("$cName`u$sName`u$aName")){ $aName=$SENT }
       $attr++
     }
+    $s.ac=$cName   # campanha atribuida (usada p/ separar o funil "Teste de Tickets" da CA07)
     $key="$d`u$cName`u$sName`u$aName"
     $g=_gg $grain $key $d $cName $sName $aName; $g.sales++; $g.rev+=$s.rev; $g.gross+=$s.gross
   }
@@ -296,7 +302,21 @@ function Build-Source($qRows,$qh,$sales,$cfg){
 }
 
 # ---- roda as duas origens (MPI) ------------------------------------
-$mAll = Read-Csv $mCsv; $mBuilt = Build-Source $mAll[1..($mAll.Count-1)] $mAll[0] $metaSales @{ hasLpv=$true; hasCheckout=$true; tax=$true; hasVideo=$true }
+$mAll = Read-Csv $mCsv
+$mRows = New-Object System.Collections.Generic.List[object]; foreach($r in $mAll[1..($mAll.Count-1)]){ $mRows.Add($r) }
+# CA07: linhas somadas as do MPI (colunas reordenadas pelo NOME do cabecalho; aba vazia/so cabecalho = ignorada)
+$ca07Rows = New-Object System.Collections.Generic.List[object]
+if(Test-Path $ca07Csv){
+  $c7 = @(Read-Csv $ca07Csv)
+  if($c7.Count -ge 2 -and ($c7[0] -is [array])){
+    $h1=$mAll[0]; $h2=$c7[0]; $map=@(); foreach($col in $h1){ $map += [array]::IndexOf($h2,$col) }
+    for($i=1;$i -lt $c7.Count;$i++){ $src=$c7[$i]; $row=New-Object string[] $h1.Count
+      for($j=0;$j -lt $h1.Count;$j++){ $ix=$map[$j]; $row[$j]= if($ix -ge 0 -and $ix -lt $src.Count){ $src[$ix] } else { '' } }
+      $ca07Rows.Add($row); $mRows.Add($row) }
+    Write-Host ("  CA07: +{0} linhas de query (somadas ao MPI)" -f $ca07Rows.Count)
+  }
+}
+$mBuilt = Build-Source $mRows $mAll[0] $metaSales @{ hasLpv=$true; hasCheckout=$true; tax=$true; hasVideo=$true }
 $gAll = Read-Csv $gCsv; $gBuilt = Build-Source $gAll[1..($gAll.Count-1)] $gAll[0] $googleSales @{ hasLpv=$false; hasCheckout=$false; tax=$false }
 # ---- MDP: so Meta por enquanto; Google = fonte vazia ate subirem ----
 $mdpAll = Read-Csv $mdpCsv
@@ -317,6 +337,25 @@ $emptySrc=[pscustomobject]@{ dateMin=''; dateMax=''; salesDateMin=''; salesDateM
   totals=[pscustomobject]@{spendRaw=0;spend=0;impr=0;clicks=0;lpv=0;checkout=0;sales=0;rev=0.0;gross=0.0;salesAttr=0}
   names=@(); daily=@(); grain=@() }
 
+# ---- funil "Teste de Tickets" (CA07): as vendas Meta do MPI que o cruzamento acima atribuiu as campanhas da CA07 ----
+#      (mesma atribuicao do MPI, inclusive campanha renomeada) + OB/upsell com utm dessas campanhas. Os numeros CONTINUAM no MPI.
+$tkt=$null
+if($ca07Rows.Count -gt 0){
+  $iC7=HdrLike $mAll[0] 'campaign name'; $c7Camps=@{}; $c7Utm=@{}
+  foreach($r in $ca07Rows){ $cn=Norm $r[$iC7]; if($cn -ne ''){ $c7Camps[$cn]=1; $c7Utm[(Deaccent $cn)]=1 } }
+  $tktSales=New-Object System.Collections.Generic.List[object]
+  foreach($s in $metaSales){ if($s.ac -ne '' -and $c7Camps.ContainsKey($s.ac)){ $tktSales.Add($s); $c7Utm[(Deaccent $s.camp)]=1 } }
+  $tktObAgg=@{}
+  foreach($s in $obSales){ if($s.src -ne 'm' -or -not $c7Utm.ContainsKey((Deaccent $s.camp))){ continue }
+    $key="$($s.date)`u$($s.k)`u$($s.src)"
+    if(-not $tktObAgg.ContainsKey($key)){ $tktObAgg[$key]=[pscustomobject]@{date=$s.date;k=$s.k;src=$s.src;sales=0;rev=0.0;gross=0.0} }
+    $o=$tktObAgg[$key]; $o.sales++; $o.rev+=$s.rev; $o.gross+=$s.gross }
+  $tktObDaily=@()
+  foreach($o in ($tktObAgg.Values | Sort-Object date)){ $tktObDaily += [pscustomobject]@{ d=$o.date; k=$o.k; src=$o.src; s=[int]$o.sales; r=[math]::Round($o.rev,2); g=[math]::Round($o.gross,2) } }
+  $tktMeta = Build-Source $ca07Rows $mAll[0] $tktSales @{ hasLpv=$true; hasCheckout=$true; tax=$true; hasVideo=$true }
+  $tkt=@{ meta=$tktMeta; ob=$tktObDaily; camps=$c7Camps.Count }
+}
+
 $nowIso=(Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
 $nowBR=[System.TimeZoneInfo]::ConvertTimeBySystemTimeZoneId([DateTime]::UtcNow,'E. South America Standard Time').ToString('dd/MM/yyyy HH:mm')
 $utf8=[System.Text.UTF8Encoding]::new($false)
@@ -333,7 +372,16 @@ $mdpPayload=[pscustomobject]@{
   ob=[pscustomobject]@{ daily=@($mdpObDaily) }
 }
 $mdpJson=$mdpPayload | ConvertTo-Json -Depth 12 -Compress
-[IO.File]::WriteAllText((Join-Path $root 'data.js'), ("window.MPI="+$json+";window.MPD="+$mdpJson+";"), $utf8)
+$tktJson='null'
+if($tkt){
+  $tktPayload=[pscustomobject]@{
+    generatedAt=$nowIso; generatedAtBR=$nowBR; taxMultiplier=$TAX; product='MPI - Teste de Tickets (CA07)'
+    meta=$tkt.meta; google=$emptySrc
+    ob=[pscustomobject]@{ daily=@($tkt.ob) }
+  }
+  $tktJson=$tktPayload | ConvertTo-Json -Depth 12 -Compress
+}
+[IO.File]::WriteAllText((Join-Path $root 'data.js'), ("window.MPI="+$json+";window.MPD="+$mdpJson+";window.MPT="+$tktJson+";"), $utf8)
 
 Write-Host ("OK  META  dias={0} grain={1} vendas={2} attrib={3}  gasto+imp=R$ {4}  fat=R$ {5}" -f `
   $mBuilt.daily.Count,$mBuilt.grain.Count,$mBuilt.totals.sales,$mBuilt.totals.salesAttr,($mBuilt.totals.spend.ToString('N2',$BR)),($mBuilt.totals.rev.ToString('N2',$BR)))
@@ -341,3 +389,6 @@ Write-Host ("OK  GOOGLE dias={0} grain={1} vendas={2} attrib={3}  gasto=R$ {4}  
   $gBuilt.daily.Count,$gBuilt.grain.Count,$gBuilt.totals.sales,$gBuilt.totals.salesAttr,($gBuilt.totals.spend.ToString('N2',$BR)),($gBuilt.totals.rev.ToString('N2',$BR)))
 Write-Host ("OK  MDP(Meta) dias={0} grain={1} vendas={2} attrib={3}  gasto+imp=R$ {4}  fat=R$ {5}" -f `
   $mdpMeta.daily.Count,$mdpMeta.grain.Count,$mdpMeta.totals.sales,$mdpMeta.totals.salesAttr,($mdpMeta.totals.spend.ToString('N2',$BR)),($mdpMeta.totals.rev.ToString('N2',$BR)))
+if($tkt){ Write-Host ("OK  TESTE DE TICKETS (CA07) campanhas={0} dias={1} vendas={2} OB/up={3}  gasto+imp=R$ {4}  fat=R$ {5}" -f `
+  $tkt.camps,$tkt.meta.daily.Count,$tkt.meta.totals.sales,@($tkt.ob).Count,($tkt.meta.totals.spend.ToString('N2',$BR)),($tkt.meta.totals.rev.ToString('N2',$BR))) }
+else { Write-Host "    TESTE DE TICKETS (CA07): sem linhas na aba - funil fica escondido" }
