@@ -2,7 +2,7 @@ name: Refresh MPI Vendas (3h)
 
 on:
   schedule:
-    - cron: '3,13,23,33,43,53 * * * *'   # 25/11/2026: a cada 10 min (pedido do cliente), minuto proprio
+    - cron: '3 */3 * * *'   # reserva: o disparo principal e o cron-job.org (10 em 10 min)
   workflow_dispatch:          # gatilho confiavel = cron-job.org faz POST aqui
 
 permissions:
