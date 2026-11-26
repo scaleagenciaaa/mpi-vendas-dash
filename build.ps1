@@ -257,7 +257,13 @@ function Build-Source($qRows,$qh,$sales,$cfg){
       if(($sName -eq '' -or -not $qPair.ContainsKey("$cName`u$sName")) -and $aName -ne ''){
         $ka="$cName`u"+(Deaccent $aName); if($adSets.ContainsKey($ka) -and $adSets[$ka].Count -eq 1){ $sName=@($adSets[$ka].Keys)[0] } }
       if($sName -eq '' -or -not $qPair.ContainsKey("$cName`u$sName")){ $sName=$SENT; $aName=$SENT }
-      elseif($aName -eq '' -or -not $qTriple.ContainsKey("$cName`u$sName`u$aName")){ $aName=$SENT }
+      elseif($aName -eq '' -or -not $qTriple.ContainsKey("$cName`u$sName`u$aName")){
+        # anuncio com nome encurtado/estendido (26/11/2026: utm "AD_116_..._40-anos-300" x query "..._40-anos-300-na-pratica"):
+        # casa se UM unico anuncio desse conjunto comeca com a utm (ou a utm comeca com ele)
+        $aName=$SENT; $uc=Deaccent $s.cont
+        if($uc.Length -ge 8){ $pfx="$cName`u$sName`u"; $cand=@()
+          foreach($k in $adSets.Keys){ if($k.StartsWith("$cName`u") -and $adSets[$k].ContainsKey($sName)){ $an=$k.Substring($cName.Length+1); if($an.StartsWith($uc) -or $uc.StartsWith($an)){ $cand+=$an } } }
+          if($cand.Count -eq 1){ $real=$adDe[$cand[0]]; if($real -and $qTriple.ContainsKey("$pfx$real")){ $aName=$real } } } }
       $attr++
     }
     $s.ac=$cName   # campanha atribuida (usada p/ separar o funil "Teste de Tickets" da CA07)
